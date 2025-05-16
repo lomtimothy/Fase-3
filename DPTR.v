@@ -26,24 +26,24 @@ module DPTR (
 	
     // Cables de buffer
     wire [63:0] Cable_combinado1, Cable_salida1;
-    wire [153:0] Cable_combinado2, Cable_salida2;
-    wire [138:0] Cable_combinado3, Cable_salida3;
+    wire [185:0] Cable_combinado2, Cable_salida2;
+    wire [170:0] Cable_combinado3, Cable_salida3;
     wire [70:0] Cable_combinado4, Cable_salida4;
 
     // Señales de los buffers
     // Buffer 1
     wire [31:0] Instr_B1, PCnext_B1;
     // Buffer 2
-    wire MemRead_B2, MemToReg_B2, MemWrite_B2, RegWrite_B2, RegDst_B2, ALUSrc_B2, Branch_B2;
+    wire MemRead_B2, MemToReg_B2, MemWrite_B2, RegWrite_B2, RegDst_B2, ALUSrc_B2, Branch_B2, Jump_B2;
     wire [2:0] ALUOp_B2;
-    wire [31:0] Read1_B2, Read2_B2, Extended_B2, PCnext_B2;
+    wire [31:0] Read1_B2, Read2_B2, Extended_B2, PCnext_B2, JumpAddr_B2;
     wire [4:0] Rt_B2, Rd_B2;
     wire [5:0] Funct_B2;
     // Buffer 3
     wire [31:0] PCnext_B3;
     wire [4:0] WriteReg_B3;
-    wire [31:0] ALURes_B3, AddRes_B3, Read2_B3;
-    wire ZF_B3, MemRead_B3, MemWrite_B3, MemToReg_B3, RegWrite_B3, Branch_B3;
+    wire [31:0] ALURes_B3, AddRes_B3, Read2_B3, JumpAddr_B3;
+    wire ZF_B3, MemRead_B3, MemWrite_B3, MemToReg_B3, RegWrite_B3, Branch_B3, Jump_B3;
     // Buffer 4
     wire [31:0] ReadMem_B4, ALURes_B4;
     wire MemToReg_B4, RegWrite_B4;
@@ -86,7 +86,7 @@ module DPTR (
     assign Rt     = Instr_B1[20:16];
     assign Rd     = Instr_B1[15:11];
     assign Funct  = Instr_B1[5:0];
-	assign JumpField_B1 = Instr_B1[25:0];    // Extract Jump field
+	assign JumpField_B1 = Instr_B1[25:0];
         
     // Control
     UnidadDeControl UC (
@@ -99,11 +99,11 @@ module DPTR (
         .RegDst(RegDst),
         .ALUSrc(ALUSrc),
         .Branch(Branch),
-		.Jump(Jump)                       // Conectar Jump
+		.Jump(Jump)
     );
      
 	// Calcular dirección de salto J
-    JumpAddress jumpaddr_inst (
+    JumpAddress JumpA (
         .PCplus4   (PCnext_B1),
         .JumpField (JumpField_B1),
         .JumpAddr  (JumpAddr)
@@ -127,34 +127,36 @@ module DPTR (
         .Imm32(Extended)
     );
         
-    // Buffer dos ID/EX
-    assign Cable_combinado2 = {MemRead, MemToReg, MemWrite, RegWrite, RegDst, ALUSrc, Branch, ALUOp, Read1, Read2, Extended, Rt, Rd, PCnext_B1, Funct};
-    BF #(154) B2 (
+    // Buffer dos ID/EX (ahora con JumpAddr y Jump)
+    assign Cable_combinado2 = {MemRead, MemToReg, MemWrite, RegWrite, RegDst, ALUSrc, Branch, Jump, ALUOp, Read1, Read2, Extended, Rt, Rd, PCnext_B1, Funct, JumpAddr};
+    BF #(186) B2 (
         .IN(Cable_combinado2), 
         .CLK(Clk), 
         .OUT(Cable_salida2)
     );
 
     // Separamos las señales en B2
-    assign MemRead_B2      = Cable_salida2[153];
-    assign MemToReg_B2     = Cable_salida2[152];
-    assign MemWrite_B2     = Cable_salida2[151];
-    assign RegWrite_B2     = Cable_salida2[150];
-    assign RegDst_B2       = Cable_salida2[149];
-    assign ALUSrc_B2       = Cable_salida2[148];
-    assign Branch_B2       = Cable_salida2[147];
+    assign MemRead_B2      = Cable_salida2[185];
+    assign MemToReg_B2     = Cable_salida2[184];
+    assign MemWrite_B2     = Cable_salida2[183];
+    assign RegWrite_B2     = Cable_salida2[182];
+    assign RegDst_B2       = Cable_salida2[181];
+    assign ALUSrc_B2       = Cable_salida2[180];
+    assign Branch_B2       = Cable_salida2[179];
+    assign Jump_B2         = Cable_salida2[178];
 
-    assign ALUOp_B2        = Cable_salida2[146:144];
+    assign ALUOp_B2        = Cable_salida2[177:175];
 
-    assign Read1_B2        = Cable_salida2[143:112];
-    assign Read2_B2        = Cable_salida2[111:80];
-    assign Extended_B2     = Cable_salida2[79:48];
+    assign Read1_B2        = Cable_salida2[174:143];
+    assign Read2_B2        = Cable_salida2[142:111];
+    assign Extended_B2     = Cable_salida2[110:79];
 
-    assign Rt_B2           = Cable_salida2[47:43];
-    assign Rd_B2           = Cable_salida2[42:38];
+    assign Rt_B2           = Cable_salida2[78:74];
+    assign Rd_B2           = Cable_salida2[73:69];
 
-    assign PCnext_B2       = Cable_salida2[37:6];
-    assign Funct_B2        = Cable_salida2[5:0];
+    assign PCnext_B2       = Cable_salida2[68:37];
+    assign Funct_B2        = Cable_salida2[36:31];
+    assign JumpAddr_B2     = Cable_salida2[30:0];
         
     // Multiplexor 2
     Mux2to1Param #(5) MUXWR (
@@ -201,26 +203,28 @@ module DPTR (
         .PCBranch(AddRes)
     );
         
-    // Buffer tres EX/MEM modificado:
-    assign Cable_combinado3 = {PCnext_B2, WriteReg, ALURes, ZF, AddRes, MemRead_B2, MemWrite_B2, MemToReg_B2, RegWrite_B2, Read2_B2, Branch_B2};
-    BF #(139) B3 (
+    // Buffer tres EX/MEM modificado (ahora con JumpAddr y Jump):
+    assign Cable_combinado3 = {PCnext_B2, WriteReg, ALURes, ZF, AddRes, MemRead_B2, MemWrite_B2, MemToReg_B2, RegWrite_B2, Read2_B2, Branch_B2, Jump_B2, JumpAddr_B2};
+    BF #(171) B3 (
         .IN(Cable_combinado3), 
         .CLK(Clk), 
         .OUT(Cable_salida3)
     );
         
     // Separamos las señales en B3
-    assign PCnext_B3  = Cable_salida3[138:107];
-    assign WriteReg_B3  = Cable_salida3[106:102];
-    assign ALURes_B3    = Cable_salida3[101:70];
-    assign ZF_B3        = Cable_salida3[69];
-    assign AddRes_B3    = Cable_salida3[68:37];
-    assign MemRead_B3   = Cable_salida3[36];
-    assign MemWrite_B3  = Cable_salida3[35];
-    assign MemToReg_B3  = Cable_salida3[34];
-    assign RegWrite_B3  = Cable_salida3[33];
-    assign Read2_B3     = Cable_salida3[32:1];
-    assign Branch_B3    = Cable_salida3[0];
+    assign PCnext_B3     = Cable_salida3[170:139];
+    assign WriteReg_B3   = Cable_salida3[138:134];
+    assign ALURes_B3     = Cable_salida3[133:102];
+    assign ZF_B3         = Cable_salida3[101];
+    assign AddRes_B3     = Cable_salida3[100:69];
+    assign MemRead_B3    = Cable_salida3[68];
+    assign MemWrite_B3   = Cable_salida3[67];
+    assign MemToReg_B3   = Cable_salida3[66];
+    assign RegWrite_B3   = Cable_salida3[65];
+    assign Read2_B3      = Cable_salida3[64:33];
+    assign Branch_B3     = Cable_salida3[32];
+    assign Jump_B3       = Cable_salida3[31];
+    assign JumpAddr_B3   = Cable_salida3[30:0];
         
     // AND para branch y flag zero
     assign Br_AND_ZF = ZF_B3 & Branch_B3;
@@ -262,8 +266,8 @@ module DPTR (
     // --- MUX final: branch/PC+4 o jump ---
     Mux2to1Param #(32) MUXPC (
         .Entrada0(PC_branch_mux),
-        .Entrada1(JumpAddr),
-        .Sel     (Jump),
+        .Entrada1(JumpAddr_B3),
+        .Sel     (Jump_B3),
         .Salida  (PCin)
     );
     
