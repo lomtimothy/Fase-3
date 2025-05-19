@@ -1,3 +1,5 @@
+`timescale 100ps/1ps
+
 module DPTR_tb;
 // Señales del testbench
     reg         Clk;
@@ -18,7 +20,7 @@ initial begin
 end
 	
 initial begin
-    #1800; 
+    #10000000; 
     $stop;
 end
 endmodule
